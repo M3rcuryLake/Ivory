@@ -2,11 +2,12 @@ import frontmatter
 import markdown
 import sys
 import os
+from timeit import timeit
 from datetime import datetime
 from shutil import copy
 import http.server
 from socketserver import TCPServer
-import random
+from random import randrange
 
 
 
@@ -25,9 +26,30 @@ pr=[]
 def Create():
     open('siteconfig.ivory', 'w').write(sys.argv[2])
 
-def serve():
-    PORT =random.randrange(1000,9999)
-    DIRECTORY = "./public/"
+def Serve():
+
+    if len(sys.argv)<3:
+        PORT =randrange(1000,9999)
+        print(f'no port mentioned....taking it as {PORT}')
+        DIRECTORY = "./public/"
+
+
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=DIRECTORY, **kwargs)
+
+
+        with TCPServer(("", PORT), Handler) as httpd:
+            print("serving at port", PORT)
+            print(f"Go to http://localhost:{PORT}/ to view your server...")
+            print("press Ctrl+C to exit")
+            httpd.serve_forever()
+
+    if sys.argv[2]=='-p':
+        if int(sys.argv[3])<1000 or int(sys.argv[3])>9999:
+            exit("enter a port between 1000 and 9999!....exiting")
+        else:
+            PORT=int(sys.argv[3])
 
 
     class Handler(http.server.SimpleHTTPRequestHandler):
@@ -38,8 +60,8 @@ def serve():
     with TCPServer(("", PORT), Handler) as httpd:
         print("serving at port", PORT)
         print(f"Go to http://localhost:{PORT}/ to view your server...")
+        print("press Ctrl+C to exit")
         httpd.serve_forever()
-        httpd.server_close()
        
 
 
@@ -47,7 +69,7 @@ def serve():
 
 def NewPage():
     f=open('./markdown/'+sys.argv[2]+'.md', 'w')
-    f.write('''---\ntitle: %s\ndate: %s\nsite: %s\n---''' % (str(input('Proper Title for the Post: ')), str(datetime.now().strftime('%Y-%m-%d')), str(open('siteconfig.ivory', 'r').read())))
+    f.write('''---\ntitle: %s\ndate: %s\nsite: %s\n---''' % str(input('Proper Title for the Post: '), str(datetime.now().strftime('%d-%m-%Y')), str(open('siteconfig.ivory', 'r').read())))
 
 
 
@@ -71,7 +93,7 @@ def Build():
         destination = './public/' + file_name 
         if os.path.isfile(source):
             copy(source, destination)
-            print('copied', file_name)
+            print('copied', file_name, 'to /public/')
 
 
 
@@ -87,7 +109,7 @@ def Build():
 
 
 
-    print('PAGES: ',posttemp, mdtemp)
+    print('POST DIRECTORY PAGES:',posttemp,' ROOT DIRECTORY PAGES:', mdtemp)
 
 
     #HEAD ONLY
@@ -113,7 +135,7 @@ def Build():
             postcontent=markdown.markdown(fsr.content)
             with open('./public/'+item[:-3]+".html", 'a')  as fsx:
                 frex=open('./layouts/index_single.html', 'r').read()
-                fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=frontmatter.load('./markdown/'+item).get('date')))
+                fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date')))
 
 
 
@@ -125,7 +147,7 @@ def Build():
         postcontent=markdown.markdown(fsr.content)
         with open('./public/post/'+item[:-3]+".html", 'a')  as fsx:
             frex=open('./layouts/post_single.html','r').read()
-            fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=frontmatter.load('./markdown/post/'+item).get('date')))
+            fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date')))
 
    
 
@@ -142,17 +164,71 @@ def Build():
 
             
 
+
     aer=''
     lerw=ler+'\n'
     for item in posttemp[::-1]: 
-        aer=aer+lerw.format(itemlocation=item[:-3]+'.html', item=item[:-3], date=frontmatter.load('./markdown/post/'+item).get('date'))  
+        zxc=frontmatter.load('./markdown/post/'+item)
+        summary=" ".join(zxc.content.split()[:70])
+        aer=aer+lerw.format(itemLocation=item[:-3]+'.html', itemTitle=zxc.get('title'), date=zxc.get('date'), Summary=summary)  
     path = open('./layouts/list.html','r').read()
     text = path.replace('[loop.start]\n'+ler+'\n[loop.end]',aer)
     open('./public/post/index.html','a').write(text.format(Title=fsr.get('title'), Site=fsr.get('site')))
+    
+    if (sys.argv[1]!='--finalise'):
+        print('running npx tailwind css scripts to get this working....')
+        os.system("cd public && npx tailwindcss -i ./src/input.css -o stylesheet.css")
+    else:
+        pass
+
+def help():
+    print(r'''
+    Made By Ankit Mukherjee (@M3rcurylake)
+    ______________________________________
 
 
+         _________
+        / ======= \
+       / __________\
+      | ___________ |
+      | | -       | |
+      | |         | |
+      | |_________| |________________________
+      \= ___________/    Caffeine: 12975mg   )
+      / """"""""""" \                       /
+     / ::::::::::::: \                  =D-'
+    (_________________)
 
-if (sys.argv[1] == 'serve'): serve() 
-if (sys.argv[1] == 'Create'): Create()
-if (sys.argv[1] == 'NewPage'): NewPage()
-if (sys.argv[1] == 'Build'): Build() 
+
+    COMMANNDS:
+
+    --finalise              :  build the site and serve it at once (use for preview only)
+    --serve                 :  open the site to a localhost server with a random port for preview
+    --serve -p 8000         :  open the site to a localhost server with given port
+    --create                :  create a new project
+    --newPage               :  creates a new page inside the project
+    --build                 :  builds the site for static hosting services  
+    --help                  :  display this prompt
+
+
+    EXAMPLES:
+
+    [*]  python3 ivory.py --finalise
+    [*]  python3 ivory.py --serve  / python3 ivory.py --serve {port}
+    [*]  python3 ivory.py --create
+    [*]  python3 ivory.py --newPage post or python3 ivory.py post/post
+    [*]  python3 ivory.py --build
+
+    Happy playing around with this tool :)
+    Visit my blog : https://m3rcurylake.pages.dev/
+
+
+    ''')
+
+
+if (sys.argv[1] == '--finalise'): Build();Serve()
+if (sys.argv[1] == '--serve'): Serve() 
+if (sys.argv[1] == '--create'): Create()
+if (sys.argv[1] == '--newPage'): NewPage()
+if (sys.argv[1] == '--build'): Build(); print(f'Building took {timeit()*100000}ms') 
+if (sys.argv[1] == '--help'):help()
