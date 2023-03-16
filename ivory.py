@@ -8,59 +8,57 @@ from shutil import copy
 import http.server
 from socketserver import TCPServer
 from random import randrange
+from math import ceil
 
 
 
+
+posttemp, mdtemp, cdir, exclusivepages= [],[],[],[]
 if len(sys.argv) < 1 and len(sys.argv)>2:
     sys.exit('''too few arguments\n---help menu---\nTODO''')
-
-
-posttemp=[]
-mdtemp=[]
-lr=[]
-pr=[]
 
 
 
 
 def Create():
-    open('siteconfig.ivory', 'w').write(sys.argv[2])
+    title=sys.argv[2]
+    baseURL=input("⭐ Enter the BaseURL of your Site (enter your domain name or leave on '/'): ")
+    author=input('⭐ Authors Name: ')
+
+
+    tempd=f'''---
+baseURL: {baseURL}
+title: {title}
+author: {author}
+---'''
+
+
+    open('siteconfig.ivory.md','w').write(tempd)
+
 
 def Serve():
 
+    if len(sys.argv)>3:
+        if sys.argv[2]=='-p':
+            if int(sys.argv[3])<1000 or int(sys.argv[3])>9999:
+                exit("🔴 enter a port between 1000 and 9999!....exiting")
+            else:
+                PORT=int(sys.argv[3])
     if len(sys.argv)<3:
         PORT =randrange(1000,9999)
-        print(f'no port mentioned....taking it as {PORT}')
-        DIRECTORY = "./public/"
-
-
-        class Handler(http.server.SimpleHTTPRequestHandler):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, directory=DIRECTORY, **kwargs)
-
-
-        with TCPServer(("", PORT), Handler) as httpd:
-            print("serving at port", PORT)
-            print(f"Go to http://localhost:{PORT}/ to view your server...")
-            print("press Ctrl+C to exit")
-            httpd.serve_forever()
-
-    if sys.argv[2]=='-p':
-        if int(sys.argv[3])<1000 or int(sys.argv[3])>9999:
-            exit("enter a port between 1000 and 9999!....exiting")
-        else:
-            PORT=int(sys.argv[3])
-
-
+        print(f'🔴 No port mentioned....taking it as {PORT}')
+    
+    
+    DIRECTORY = "./public/"
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=DIRECTORY, **kwargs)
 
 
     with TCPServer(("", PORT), Handler) as httpd:
-        print("serving at port", PORT)
-        print(f"Go to http://localhost:{PORT}/ to view your server...")
-        print("press Ctrl+C to exit")
+        print("⭐ serving at port", PORT)
+        print(f"⭐ Go to http://localhost:{PORT}/ to view your server...")
+        print("⭐ press Ctrl+C to exit")
         httpd.serve_forever()
        
 
@@ -69,7 +67,12 @@ def Serve():
 
 def NewPage():
     f=open('./markdown/'+sys.argv[2]+'.md', 'w')
-    f.write('''---\ntitle: %s\ndate: %s\nsite: %s\n---''' % str(input('Proper Title for the Post: '), str(datetime.now().strftime('%d-%m-%Y')), str(open('siteconfig.ivory', 'r').read())))
+    f.write('''---
+title: %s
+date: %s
+site: %s
+author: %s
+---''' % (input('Proper Title for the Post: '), datetime.now().strftime('%B %d,%Y'), frontmatter.load('siteconfig.ivory.md').get("title"), frontmatter.load('siteconfig.ivory.md').get('author')))
 
 
 
@@ -84,8 +87,20 @@ def Build():
              mdtemp.append(file)
         else:
             continue
+    cdir=mdtemp.copy()
+    for item in posttemp:
+        erfrd="post/"+item
+        cdir.append(erfrd)
 
 
+    baseURL=frontmatter.load('siteconfig.ivory.md').get('baseURL')
+    author=frontmatter.load('siteconfig.ivory.md').get('author')
+    
+#--------------------------------------------------
+    listPermalink=f"post/index.html" #fix this shit
+#--------------------------------------------------
+
+    stylesPermalink=f'{baseURL}stylesheet.css'
 
     #COPY STATIC FILES
     for file_name in os.listdir('./static'):
@@ -109,82 +124,123 @@ def Build():
 
 
 
-    print('POST DIRECTORY PAGES:',posttemp,' ROOT DIRECTORY PAGES:', mdtemp)
+    print('⭐ \nPOST DIRECTORY PAGES:',",".join(posttemp),'\n⭐ ROOT DIRECTORY PAGES:', ",".join(mdtemp),'\n')
 
 
-    #HEAD ONLY
-    for item in mdtemp:
+    #BASE
+    print(cdir)
+
+    for item in cdir:
+        #HEAD
         fsr=frontmatter.load('./markdown/'+item)
         with open('./public/'+item[:-3]+".html", 'w') as fsx:
             frex=open('./layouts/head.html', 'r').read()
-            fsx.write(frex.format(Title=fsr.get('title'), Site=fsr.get('site') ))
-    for item in posttemp:
-        fsr=frontmatter.load('./markdown/post/'+item)
-        with open('./public/post/'+item[:-3]+".html", 'w') as fsx:
-            frex=open('./layouts/posthead.html', 'r').read()
-            fsx.write(frex.format(Title=fsr.get('title'), Site=fsr.get('site') ))
+            head=(frex.format(Title=fsr.get('title'), sitePermalink=baseURL, stylesPermalink=stylesPermalink, Site=fsr.get('site')))
+        #HEADER
+        fsr=frontmatter.load('./markdown/'+item)
+        frex=open('./layouts/header.html','r').read()
+        header=(frex.format(Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
 
-
-
-    #ROOT PAGES
-    for item in mdtemp:
-        if item == 'list.md':
-            continue
-        else:
+        #FOOTER
+        fsr=frontmatter.load('./markdown/'+item)
+        with open('./public/'+item[:-3]+".html", 'a')  as fsx:
+            frex=open('./layouts/footer.html','r').read()
+            footer=(frex.format(Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
+    
+        #ROOT PAGE
+        if item.startswith('post/')==False:
             fsr=frontmatter.load('./markdown/'+item)
             postcontent=markdown.markdown(fsr.content)
-            with open('./public/'+item[:-3]+".html", 'a')  as fsx:
-                frex=open('./layouts/index_single.html', 'r').read()
-                fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date')))
+            wordcount=len(postcontent.split())
+            Summary=" ".join(postcontent.split()[:70])
+            readingTime=ceil((len(postcontent.split())*0.5)/60)
+            frex=open('./layouts/root_single.html', 'r').read()
+            rootpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
 
-
-
-
-    #POST PAGES
-    posttemp.remove('index.md')
-    for item in posttemp:
-        fsr=frontmatter.load('./markdown/post/'+item)
-        postcontent=markdown.markdown(fsr.content)
-        with open('./public/post/'+item[:-3]+".html", 'a')  as fsx:
+        #POST PAGE
+        if item.startswith('post/') and item != 'post/index.md':
+            fsr=frontmatter.load('./markdown/'+item)
+            postcontent=markdown.markdown(fsr.content)
+            wordcount=len(postcontent.split())
+            Summary=" ".join(postcontent.split()[:70])
+            readingTime=ceil((len(postcontent.split())*0.5)/60)
             frex=open('./layouts/post_single.html','r').read()
-            fsx.write(frex.format(postcontent=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date')))
+            postpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL , listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
 
-   
+        #LIST PAGE
+        if item=='post/index.md':
+            aew=open('./layouts/list.html','r').read().split('\n')
+            ertemp=aew[(aew.index('{loopStart}')+1):(aew.index('{loopEnd}'))]
+            lerw=("\n".join(ertemp))
+            aer=''
+            posttemp.remove('index.md')
+            for i in posttemp[::-1]: 
+                fsr=frontmatter.load('markdown/post/index.md')
+                zxc=frontmatter.load('./markdown/post/'+i)
+                summary=" ".join(zxc.content.split()[:70])
+                wordcount=len(zxc.content.split())
+                readingTime=ceil((len(zxc.content.split())*0.5)/60)
+                aer=aer+lerw.format(postLocation=i[:-3]+'.html', postTitle=zxc.get('title'), date=zxc.get('date'), Summary=summary, author=author, wordCount=wordcount, readingTime=readingTime)+'\n' 
+            path = open('./layouts/list.html','r').read()
+            text = path.replace('{loopStart}\n'+lerw+'\n{loopEnd}',aer)
+            listpagearticle=(text.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'),  date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
 
-
-    #LIST PAGE
-    with open('./layouts/list.html','r') as input_data:
-        for line in input_data:
-            if line.startswith('[loop.start]'):
-                break
-        for line in input_data:
-            if line.startswith('[loop.end]'):
-                break
-            ler=line.strip()
-
-            
-
-
-    aer=''
-    lerw=ler+'\n'
-    for item in posttemp[::-1]: 
-        zxc=frontmatter.load('./markdown/post/'+item)
-        summary=" ".join(zxc.content.split()[:70])
-        aer=aer+lerw.format(itemLocation=item[:-3]+'.html', itemTitle=zxc.get('title'), date=zxc.get('date'), Summary=summary)  
-    path = open('./layouts/list.html','r').read()
-    text = path.replace('[loop.start]\n'+ler+'\n[loop.end]',aer)
-    open('./public/post/index.html','a').write(text.format(Title=fsr.get('title'), Site=fsr.get('site')))
     
-    if (sys.argv[1]!='--finalise'):
-        print('running npx tailwind css scripts to get this working....')
-        os.system("cd public && npx tailwindcss -i ./src/input.css -o stylesheet.css")
-    else:
-        pass
+        #WRITE
+        base=open('layouts/base.html', 'r').read()
+        with open('./public/'+item[:-3]+".html", 'a')  as fsx:
+            if item.startswith('post/'):
+                if item=='post/index.md':
+                    fsx.write(base.format(head=head,header=header, article=listpagearticle, footer=footer))
+                else:
+                    fsx.write(base.format(head=head,header=header, article=postpagearticle, footer=footer))
+                    pass
+            else:
+                fsx.write(base.format(head=head,header=header, article=rootpagearticle, footer=footer))
 
+
+    #EXCLUSIVE PAGES '_index.html , _about.html' etc
+    for item in os.listdir('layouts/'):
+        if item.startswith('_'):
+            print('copied', item, 'to /public/')
+            os.rename('public/'+item, 'public/'+item.strip('_'))
+
+    #SITEMAP
+    smap='''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>"{baseURL}"</loc>
+      <lastmod>2022-07-27T02:24:08.242Z</lastmod>
+      <priority>0.6</priority>
+    </url>
+{loopStart}
+    <url>
+      <loc>"{location}"</loc>
+      <lastmod>"{Date}"</lastmod>
+      <priority>"0.6"</priority>
+    </url>
+{loopEnd}
+</urlset>    
+'''
+    aew=smap.split('\n')
+    xser=aew[(aew.index('{loopStart}')+1):(aew.index('{loopEnd}'))]
+    lerw=("\n".join(xser))
+    aer=''
+    for i in cdir[::-1]: 
+        zxc=frontmatter.load('./markdown/'+i)
+        aer=aer+lerw.format(location=baseURL+i[:-3]+'.html', Date=zxc.get('date'))+'\n' 
+    sitemap = smap.replace('{loopStart}\n'+lerw+'\n{loopEnd}',aer)
+    open('./public/sitemap.xml','w').write(sitemap)
+
+
+
+    print('⭐ running npx tailwind css scripts to get this working....')
+    os.system("npx tailwindcss -i ./src/input.css -o ./public/stylesheet.css")
+     
 def help():
     print(r'''
-    Made By Ankit Mukherjee (@M3rcurylake)
-    ______________________________________
+    Made By Ankit Mukherjee 🔥 (@M3rcurylake)
+    _________________________________________
 
 
          _________
@@ -196,7 +252,7 @@ def help():
       | |_________| |________________________
       \= ___________/    Caffeine: 12975mg   )
       / """"""""""" \                       /
-     / ::::::::::::: \                  =D-'
+     / ::::::::::::: \                  :!-'
     (_________________)
 
 
@@ -219,8 +275,11 @@ def help():
     [*]  python3 ivory.py --newPage post or python3 ivory.py post/post
     [*]  python3 ivory.py --build
 
+    create exclusive pages (without using default themes) just by appending '_' before the filename 
+    (eg: _about.html)
+
     Happy playing around with this tool :)
-    Visit my blog : https://m3rcurylake.pages.dev/
+    Visit my blog 🌏 : https://m3rcurylake.pages.dev/
 
 
     ''')

@@ -1,9 +1,14 @@
-<body class="text-center">
+<article class="text-center">
 <div class=" text-slate-900 font-Nunito mx-auto max-w-xl text-center md:mt-28 mt-10 mb-10 shadow-lg  bg-slate-100 p-20 rounded-lg " >
-<p class="text-3xl font-bold underline mb-10">Blogs.</p>
-[loop.start]
-<a href="{itemLocation}"><div class="font-bold mx-auto hover:bg-blue-300 hover:shadow-xl rounded-md p-2 my-10 transition-all duration-300 hover:text-white"><p class=" font-bold">{itemTitle}</p><p class="mx-auto font-bold font-PatrickHand text-sm">written  on {date}</p><p class="mt-10 font-Neucha font-normal">{Summary}</p></div></a>
-[loop.end]
+<p class="text-3xl font-bold underline mb-10">{Title}</p>
+{loopStart}
+<a href="{postLocation}">
+    <div class="font-bold mx-auto hover:bg-blue-300 hover:shadow-xl rounded-md p-2 my-10 transition-all duration-300 hover:text-white">
+        <p class=" font-bold">{postTitle}</p>
+        <p class="mx-auto font-bold font-PatrickHand text-sm">written  on {date}</p>
+        <p class="mt-10 font-Neucha font-normal">{Summary}</p>
+    </div>
+</a>
+{loopEnd}
 </div>
-</body>
-</html>
+</article>
