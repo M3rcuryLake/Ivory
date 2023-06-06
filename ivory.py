@@ -3,50 +3,37 @@ import markdown
 import sys
 import os
 from timeit import timeit
-from datetime import datetime
+import datetime
 from shutil import copy
 import http.server
 from socketserver import TCPServer
 from random import randrange
 from math import ceil
+import glob
 
 
-
-
-posttemp, mdtemp, cdir, exclusivepages= [],[],[],[]
+posttemp, mdtemp, cdir, exclusivepages, postlist= [],[],[],[],[]
 if len(sys.argv) < 1 and len(sys.argv)>2:
     sys.exit('''too few arguments\n---help menu---\nTODO''')
-
-
-
-
+    
 def Create():
-    title=sys.argv[2]
-    baseURL=input("⭐ Enter the BaseURL of your Site (enter your domain name or leave on '/'): ")
-    author=input('⭐ Authors Name: ')
+    title=input('site name: ')
+    baseURL=input("[*] Enter the BaseURL of your Site (enter your domain name or leave on '/'): ")
+    author=input('[*] Authors Name: ')
 
-
-    tempd=f'''---
-baseURL: {baseURL}
-title: {title}
-author: {author}
----'''
-
-
+    tempd=f'''---\nsite: {title}\nbaseURL: {baseURL}\ntitle: {title}\nauthor: {author}\n---'''
     open('siteconfig.ivory.md','w').write(tempd)
 
-
 def Serve():
-
     if len(sys.argv)>3:
         if sys.argv[2]=='-p':
             if int(sys.argv[3])<1000 or int(sys.argv[3])>9999:
-                exit("🔴 enter a port between 1000 and 9999!....exiting")
+                exit("[!] enter a port between 1000 and 9999!....exiting")
             else:
                 PORT=int(sys.argv[3])
     if len(sys.argv)<3:
         PORT =randrange(1000,9999)
-        print(f'🔴 No port mentioned....taking it as {PORT}')
+        print(f'[!] No port mentioned....taking it as {PORT}')
     
     
     DIRECTORY = "./public/"
@@ -54,27 +41,19 @@ def Serve():
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=DIRECTORY, **kwargs)
 
-
     with TCPServer(("", PORT), Handler) as httpd:
-        print("⭐ serving at port", PORT)
-        print(f"⭐ Go to http://localhost:{PORT}/ to view your server...")
-        print("⭐ press Ctrl+C to exit")
+        print("[*] serving at port", PORT)
+        print(f"[*] Go to http://localhost:{PORT}/ to view your server...")
+        print("[*] press Ctrl+C to exit")
         httpd.serve_forever()
        
-
-
-
 
 def NewPage():
     f=open('./markdown/'+sys.argv[2]+'.md', 'w')
     f.write('''---
 title: %s
 date: %s
-site: %s
-author: %s
 ---''' % (input('Proper Title for the Post: '), datetime.now().strftime('%B %d,%Y'), frontmatter.load('siteconfig.ivory.md').get("title"), frontmatter.load('siteconfig.ivory.md').get('author')))
-
-
 
 def Build():
     for file in os.listdir('./markdown/post'):
@@ -95,9 +74,10 @@ def Build():
 
     baseURL=frontmatter.load('siteconfig.ivory.md').get('baseURL')
     author=frontmatter.load('siteconfig.ivory.md').get('author')
+    site=frontmatter.load('siteconfig.ivory.md').get('site')
     
 #--------------------------------------------------
-    listPermalink=f"post/index.html" #fix this shit
+    listPermalink=f"../post/index.html" #fix this shit
 #--------------------------------------------------
 
     stylesPermalink=f'{baseURL}stylesheet.css'
@@ -124,7 +104,7 @@ def Build():
 
 
 
-    print('⭐ \nPOST DIRECTORY PAGES:',",".join(posttemp),'\n⭐ ROOT DIRECTORY PAGES:', ",".join(mdtemp),'\n')
+    print('⭐ \nPOST DIRECTORY PAGES:',posttemp,'\n⭐ ROOT DIRECTORY PAGES:', (mdtemp),'\n')
 
 
     #BASE
@@ -139,13 +119,13 @@ def Build():
         #HEADER
         fsr=frontmatter.load('./markdown/'+item)
         frex=open('./layouts/header.html','r').read()
-        header=(frex.format(Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
+        header=(frex.format(Title=fsr.get('title'), Site=site, date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
 
         #FOOTER
         fsr=frontmatter.load('./markdown/'+item)
         with open('./public/'+item[:-3]+".html", 'a')  as fsx:
             frex=open('./layouts/footer.html','r').read()
-            footer=(frex.format(Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
+            footer=(frex.format(Title=fsr.get('title'), Site=site, date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
     
         #ROOT PAGE
         if item.startswith('post/')==False:
@@ -155,7 +135,7 @@ def Build():
             Summary=" ".join(postcontent.split()[:70])
             readingTime=ceil((len(postcontent.split())*0.5)/60)
             frex=open('./layouts/root_single.html', 'r').read()
-            rootpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
+            rootpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=site, date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
 
         #POST PAGE
         if item.startswith('post/') and item != 'post/index.md':
@@ -165,7 +145,7 @@ def Build():
             Summary=" ".join(postcontent.split()[:70])
             readingTime=ceil((len(postcontent.split())*0.5)/60)
             frex=open('./layouts/post_single.html','r').read()
-            postpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'), date=fsr.get('date'), sitePermalink=baseURL , listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
+            postpagearticle=(frex.format(Content=postcontent, Title=fsr.get('title'), Site=site, date=fsr.get('date'), sitePermalink=baseURL , listPermalink=listPermalink, Summary=Summary, author=author, wordCount=wordcount, readingTime=readingTime))
 
         #LIST PAGE
         if item=='post/index.md':
@@ -173,17 +153,31 @@ def Build():
             ertemp=aew[(aew.index('{loopStart}')+1):(aew.index('{loopEnd}'))]
             lerw=("\n".join(ertemp))
             aer=''
+            lq=[]
+            list_of_files = glob.glob('markdown/post/*.md')
             posttemp.remove('index.md')
-            for i in posttemp[::-1]: 
+
+            for xs in posttemp:
+                zx=frontmatter.load('markdown/post/'+xs)
+                #zx.get('date').strftime('%d-%m-%y')
+                latest_file = max(list_of_files, key=os.path.getctime)
+                lq.append(latest_file)
+                list_of_files.remove(latest_file)
+
+            for ie in lq:
+                print(ie)
+                postlist.append(ie.lstrip("markdown/post/"))
+                
+            for i in postlist:
                 fsr=frontmatter.load('markdown/post/index.md')
-                zxc=frontmatter.load('./markdown/post/'+i)
-                summary=" ".join(zxc.content.split()[:70])
+                zxc=frontmatter.load("markdown/post/"+i)
+                summary=markdown.markdown(" ".join(zxc.content.split()[:70]))
                 wordcount=len(zxc.content.split())
                 readingTime=ceil((len(zxc.content.split())*0.5)/60)
                 aer=aer+lerw.format(postLocation=i[:-3]+'.html', postTitle=zxc.get('title'), date=zxc.get('date'), Summary=summary, author=author, wordCount=wordcount, readingTime=readingTime)+'\n' 
             path = open('./layouts/list.html','r').read()
             text = path.replace('{loopStart}\n'+lerw+'\n{loopEnd}',aer)
-            listpagearticle=(text.format(Content=postcontent, Title=fsr.get('title'), Site=fsr.get('site'),  date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
+            listpagearticle=(text.format(Content=postcontent, Title=fsr.get('title'), Site=site , date=fsr.get('date'), sitePermalink=baseURL, listPermalink=listPermalink, author=author))
 
     
         #WRITE
@@ -202,6 +196,7 @@ def Build():
     #EXCLUSIVE PAGES '_index.html , _about.html' etc
     for item in os.listdir('layouts/'):
         if item.startswith('_'):
+            copy("layouts/"+item, "./public/")
             print('copied', item, 'to /public/')
             os.rename('public/'+item, 'public/'+item.strip('_'))
 
@@ -280,11 +275,9 @@ def help():
 
     Happy playing around with this tool :)
     Visit my blog 🌏 : https://m3rcurylake.pages.dev/
-
-
+    
+    
     ''')
-
-
 if (sys.argv[1] == '--finalise'): Build();Serve()
 if (sys.argv[1] == '--serve'): Serve() 
 if (sys.argv[1] == '--create'): Create()
